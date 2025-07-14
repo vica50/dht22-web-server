@@ -5,4 +5,4 @@ All the code was mainly written by ChatGPT with a few tweaks by me.
 
 The website is in Swedish.
 
-The site: rosvall.duckdns.org/dht22/
+The site: https://rosvall.duckdns.org/dht22/

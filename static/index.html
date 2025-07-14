@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <title>DHT22 - Temperatur och Fukt</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    canvas { max-width: 100%; height: 400px; }
+  </style>
+</head>
+<body>
+  <h2>Temperatur och Luftfuktighet</h2>
+  <p id="live">Live: laddar...</p>
+  <p id="cpu">CPU: laddar...</p>
+
+  <label for="range">Välj tidsintervall:</label>
+  <select id="range">
+    <option value="1d">1 dygn</option>
+    <option value="1w">1 vecka</option>
+    <option value="1y">1 år</option>
+    <option value="all">All data</option>
+    <option value="ch">Custom timmar</option>
+    <option value="cd">Custom dygn</option>
+  </select>
+
+  <input type="number" id="customVal" value="1" min="1" style="display:none;">
+  <button id="update">Uppdatera diagram</button>
+
+  <canvas id="chart"></canvas>
+
+  <script>
+    const liveElem = document.getElementById("live");
+    const ctx = document.getElementById('chart').getContext('2d');
+    const rangeSelect = document.getElementById('range');
+    const customInput = document.getElementById('customVal');
+    const updateBtn = document.getElementById('update');
+
+    const chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          { label: 'Temperatur (°C)', data: [], borderColor: 'red', fill: false },
+          { label: 'Luftfuktighet (%)', data: [], borderColor: 'blue', fill: false }
+        ]
+      },
+      options: { scales: { x: { display: true }, y: { beginAtZero: false } } }
+    });
+
+    function updateLive() {
+      fetch("/dht22/api/live")
+        .then(res => res.json())
+        .then(data => {
+          if (data.error) {
+            liveElem.textContent = "Live: error";
+          } else {
+            liveElem.textContent = `Live: ${data.temperature} °C, ${data.humidity} %`;
+          }
+        })
+        .catch(() => {
+          liveElem.textContent = "Live: kunde inte hämta";
+        });
+    }
+
+  fetch("/dht22/api/cpu_temp")
+    .then(res => res.json())
+    .then(data => {
+      const cpuElem = document.getElementById("cpu");
+      if (data.cpu_temp !== undefined) {
+        cpuElem.textContent = `CPU: ${data.cpu_temp} °C`;
+      } else {
+        cpuElem.textContent = "CPU: error";
+      }
+    })
+    .catch(() => {
+      const cpuElem = document.getElementById("cpu");
+      cpuElem.textContent = "CPU: kunde inte hämta";
+    });
+}
+
+    function updateChart() {
+      let range = rangeSelect.value;
+      let url = `/dht22/api/data?range=${range}`;
+      if (range === 'ch') url += `&h=${customInput.value}`;
+      if (range === 'cd') url += `&d=${customInput.value}`;
+
+      fetch(url)
+        .then(res => res.json())
+        .then(data => {
+          chart.data.labels = data.map(e => e.time);
+          chart.data.datasets[0].data = data.map(e => e.temp);
+          chart.data.datasets[1].data = data.map(e => e.hum);
+          chart.update();
+        });
+    }
+
+    rangeSelect.addEventListener('change', () => {
+      if (rangeSelect.value.startsWith('c')) {
+        customInput.style.display = 'inline';
+      } else {
+        customInput.style.display = 'none';
+      }
+    });
+
+    updateBtn.addEventListener('click', updateChart);
+
+    updateChart();
+    updateLive();
+    setInterval(updateLive, 2000);
+  </script>
+<footer style="margin-top: 40px; font-size: 14px;">
+  <a href="https://github.com/vica50/dht22-web-server/tree/main" target="_blank" style="text-decoration: underline; color: blue; display: flex; align-items: center;">
+    <img src="https://raw.githubusercontent.com/vica50/dht22-web-server/main/github.png" alt="GitHub" width="16" height="16" style="margin-right: 6px;">
+    Source code
+  </a>
+</footer>
+</body>
+</html>

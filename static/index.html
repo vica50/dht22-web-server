@@ -12,7 +12,7 @@
 <body>
   <h2>Temperatur och Luftfuktighet</h2>
   <p id="live">Live: laddar...</p>
-  <p id="cpu">CPU: laddar...</p>
+  <p id="cpuTemp">CPU: laddar...</p>
 
   <label for="range">Välj tidsintervall:</label>
   <select id="range">
@@ -63,20 +63,27 @@
         });
     }
 
-  fetch("/dht22/api/cpu_temp")
-    .then(res => res.json())
-    .then(data => {
-      const cpuElem = document.getElementById("cpu");
-      if (data.cpu_temp !== undefined) {
-        cpuElem.textContent = `CPU: ${data.cpu_temp} °C`;
-      } else {
-        cpuElem.textContent = "CPU: error";
-      }
-    })
-    .catch(() => {
-      const cpuElem = document.getElementById("cpu");
-      cpuElem.textContent = "CPU: kunde inte hämta";
-    });
+  function fetchCpuTemp() {
+    fetch('/dht22/api/cpu_temp')
+      .then(res => res.json())
+      .then(data => {
+        const cpuElem = document.getElementById('cpuTemp');
+        if (data.cpu_temp !== undefined) {
+          cpuElem.textContent = 'CPU: ' + data.cpu_temp + ' °C';
+        } else {
+          cpuElem.textContent = 'CPU: Fel: ' + (data.error || 'okänt fel');
+        }
+      })
+      .catch(err => {
+        const cpuElem = document.getElementById('cpuTemp');
+        cpuElem.textContent = 'CPU: Fel vid hämtning';
+        console.error(err);
+      });
+  }
+
+  fetchCpuTemp();
+
+  setInterval(fetchCpuTemp, 2000);
 
     function updateChart() {
       let range = rangeSelect.value;
@@ -110,7 +117,7 @@
   </script>
 <footer style="margin-top: 40px; font-size: 14px;">
   <a href="https://github.com/vica50/dht22-web-server/tree/main" target="_blank" style="text-decoration: underline; color: blue; display: flex; align-items: center;">
-    <img src="https://raw.githubusercontent.com/vica50/dht22-web-server/main/github.png" alt="GitHub" width="16" height="16" style="margin-right: 6px;">
+    <img src="https://raw.githubusercontent.com/vica50/dht22-web-server/refs/heads/main/assets/github.png" alt="GitHub" width="16" height="16" style="margin-right: 6px;">
     Source code
   </a>
 </footer>

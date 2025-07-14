@@ -4,3 +4,5 @@ I just uploaded all my files, so if you wish to recreate it and make it work som
 All the code was mainly written by ChatGPT with a few tweaks by me.
 
 The website is in Swedish.
+
+The site: rosvall.duckdns.org/dht22/

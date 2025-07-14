@@ -26,12 +26,24 @@ def serve_index():
 @app.route("/dht22/api/live")
 def get_live():
     try:
+        time.sleep(2)
         temp = dhtDevice.temperature
         humidity = dhtDevice.humidity
         return jsonify({
             "temperature": temp,
             "humidity": humidity
         })
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
+# API: live CPU temp
+@app.route("/dht22/api/cpu_temp")
+def get_cpu_temp():
+    try:
+        with open("/sys/class/thermal/thermal_zone0/temp", "r") as f:
+            temp_str = f.read().strip()
+            temp_c = int(temp_str) / 1000.0
+        return jsonify({"cpu_temp": round(temp_c, 1)})
     except Exception as e:
         return jsonify({"error": str(e)})
 

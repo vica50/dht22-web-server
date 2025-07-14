@@ -73,15 +73,20 @@ def get_data():
         elif range_val == "ch":
             try:
                 hours = int(request.args.get("h", "1"))
+                if hours < 1 or hours > 8760:  # 1 year max
+                    raise ValueError("Invalid hour range")
                 cutoff = now - timedelta(hours=hours)
             except:
-                cutoff = None
+                return jsonify({"error": "Invalid number of hours"}), 400
         elif range_val == "cd":
             try:
                 days = int(request.args.get("d", "1"))
+                if days < 1 or days > 365:
+                    raise ValueError("Invalid day range")
                 cutoff = now - timedelta(days=days)
             except:
-                cutoff = None
+                return jsonify({"error": "Invalid number of days"}), 400
+
 
         if cutoff:
             filtered = []
@@ -135,4 +140,3 @@ start_logger()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8001)
-

@@ -64,6 +64,8 @@
     <label><input type="radio" name="theme" value="light"> Ljust</label>
     <label><input type="radio" name="theme" value="dark"> Mörkt</label>
     <label><input type="radio" name="theme" value="auto" checked> Auto</label>
+    <p><strong>Live-uppdatering:</strong></p>
+    <label><input type="checkbox" id="liveUpdateToggle" checked> Slå på live-uppdatering</label>
   </div>
 
   <h2>Temperatur och Luftfuktighet</h2>
@@ -100,6 +102,7 @@
     const updateBtn = document.getElementById('update');
     const settingsBtn = document.getElementById('settings-btn');
     const settingsDiv = document.getElementById('settings');
+    const liveUpdateToggle = document.getElementById('liveUpdateToggle');
 
     const chart = new Chart(ctx, {
       type: 'line',
@@ -152,29 +155,28 @@
     }
 
     function updateChart() {
-        let range = rangeSelect.value;
-        let customVal = parseInt(customInput.value);
+      let range = rangeSelect.value;
+      let customVal = parseInt(customInput.value);
 
-        // Rickroll if the input is 24
-        if ((range === 'ch' || range === 'cd') && customVal === 24) {
-            window.location.href = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
-            return;
-        }
+      // Rickroll if the input is 24
+      if ((range === 'ch' || range === 'cd') && customVal === 24) {
+        window.location.href = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+        return;
+      }
 
-        let url = `/dht22/api/data?range=${range}`;
-        if (range === 'ch') url += `&h=${customInput.value}`;
-        if (range === 'cd') url += `&d=${customInput.value}`;
+      let url = `/dht22/api/data?range=${range}`;
+      if (range === 'ch') url += `&h=${customInput.value}`;
+      if (range === 'cd') url += `&d=${customInput.value}`;
 
-        fetch(url)
-            .then(res => res.json())
-            .then(data => {
-                chart.data.labels = data.map(e => e.time);
-                chart.data.datasets[0].data = data.map(e => e.temp);
-                chart.data.datasets[1].data = data.map(e => e.hum);
-                chart.update();
-            });
+      fetch(url)
+        .then(res => res.json())
+        .then(data => {
+          chart.data.labels = data.map(e => e.time);
+          chart.data.datasets[0].data = data.map(e => e.temp);
+          chart.data.datasets[1].data = data.map(e => e.hum);
+          chart.update();
+        });
     }
-
 
     rangeSelect.addEventListener('change', () => {
       customInput.style.display = rangeSelect.value.startsWith('c') ? 'inline' : 'none';
@@ -205,14 +207,43 @@
       });
     });
 
+    // Hantera live-uppdatering interval
+    let liveInterval = null;
+
+    function startLiveUpdate() {
+      updateLive();
+      fetchCpuTemp();
+      liveInterval = setInterval(() => {
+        updateLive();
+        fetchCpuTemp();
+      }, 2000);
+    }
+
+    function stopLiveUpdate() {
+      if (liveInterval !== null) {
+        clearInterval(liveInterval);
+        liveInterval = null;
+      }
+    }
+
+    // Starta live-uppdatering om checkbox är ikryssad vid sidladdning
+    if (liveUpdateToggle.checked) {
+      startLiveUpdate();
+    }
+
+    // Lyssna på checkbox för att slå på/av live-uppdatering
+    liveUpdateToggle.addEventListener('change', () => {
+      if (liveUpdateToggle.checked) {
+        startLiveUpdate();
+      } else {
+        stopLiveUpdate();
+        liveElem.textContent = "Live: pausad";
+        document.getElementById('cpuTemp').textContent = "CPU: pausad";
+      }
+    });
+
+    // Kör en gång direkt vid sidladdning för diagram och tema
     updateChart();
-    updateLive();
-    fetchCpuTemp();
-
-    setInterval(updateLive, 2000);
-    setInterval(fetchCpuTemp, 2000);
-
-    // Set default theme on load
     applyTheme(document.querySelector('input[name="theme"]:checked').value);
   </script>
 </body>

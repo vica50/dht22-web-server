@@ -17,6 +17,17 @@ dhtDevice = adafruit_dht.DHT22(board.D4)
 DATA_FILE = "data.jsonl"
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
 
+# Time of last sensor read, in seconds since the epoch
+last_read_time = 0.0
+
+# Cached sensor values
+last_data = {
+    "temperature": None,
+    "humidity": None,
+    "time":None
+}
+
+
 # Serve the index.html
 @app.route("/dht22/")
 def serve_index():
@@ -25,16 +36,29 @@ def serve_index():
 # API: live reading
 @app.route("/dht22/api/live")
 def get_live():
-    try:
-        time.sleep(2)
-        temp = dhtDevice.temperature
-        humidity = dhtDevice.humidity
-        return jsonify({
-            "temperature": temp,
-            "humidity": humidity
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)})
+    global last_read_time, last_data
+
+    now = time.time()
+    # If ≥2s have passed since last read, poll the sensor again
+    if now - last_read_time >= 2.0:
+        try:
+            temp     = dhtDevice.temperature
+            humidity = dhtDevice.humidity
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            # Update cache
+            last_data = {
+                "temperature": temp,
+                "humidity":    humidity,
+                "time":        timestamp
+            }
+            last_read_time = now
+
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    # Return cached (or newly updated) data immediately
+    return jsonify(last_data)
+
 
 # API: live CPU temp
 @app.route("/dht22/api/cpu_temp")
@@ -103,21 +127,42 @@ def get_data():
 
 # Background: log sensor data every 5 minutes
 def log_sensor_data():
+    global last_read_time, last_data
+
     while True:
-        try:
-            temp = dhtDevice.temperature
-            hum = dhtDevice.humidity
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        now = time.time()
 
-            entry = {"time": timestamp, "temp": temp, "hum": hum}
+        if now - last_read_time > 300:  # Cache older than 5 minutes, poll fresh
+            try:
+                temp = dhtDevice.temperature
+                hum = dhtDevice.humidity
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+                last_data = {
+                    "temperature": temp,
+                    "humidity": hum,
+                    "time": timestamp
+                }
+                last_read_time = now
+
+            except Exception as e:
+                print("Logging error:", e)
+                # Maybe continue without updating cache, or decide how to handle
+
+        # Use cached data to write to file
+        if last_data["temperature"] is not None and last_data["humidity"] is not None:
+            entry = {
+                "time": last_data.get("time", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+                "temp": last_data["temperature"],
+                "hum": last_data["humidity"]
+            }
             with open(DATA_FILE, "a") as f:
                 f.write(json.dumps(entry) + "\n")
 
             trim_data_file()
-        except Exception as e:
-            print("Logging error:", e)
-        time.sleep(300)  # wait 5 min
+
+        time.sleep(300)  # Wait 5 minutes before next log
+
 
 # Trim old data if file too large
 def trim_data_file():

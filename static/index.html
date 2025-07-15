@@ -5,11 +5,67 @@
   <title>DHT22 - Temperatur och Fukt</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body { font-family: sans-serif; padding: 20px; }
-    canvas { max-width: 100%; height: 400px; }
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    canvas {
+      max-width: 100%;
+      height: 400px;
+    }
+
+    #settings-btn {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      cursor: pointer;
+      width: 24px;
+      height: 24px;
+    }
+
+    #settings {
+      position: fixed;
+      top: 50px;
+      right: 10px;
+      background: white;
+      border: 1px solid #ccc;
+      padding: 10px;
+      border-radius: 6px;
+      display: none;
+      z-index: 1000;
+    }
+
+    #settings label {
+      margin-right: 10px;
+    }
+
+    body.dark {
+      background: #121212;
+      color: #eee;
+    }
+
+    body.dark #settings {
+      background: #1e1e1e;
+      border-color: #444;
+    }
+
+    /* "Välj tema:" ska alltid vara svart */
+    #settings strong {
+      color: black;
+    }
   </style>
 </head>
 <body>
+  <img id="settings-btn" src="https://raw.githubusercontent.com/vica50/dht22-web-server/refs/heads/main/assets/cog.png" alt="Inställningar">
+  <div id="settings">
+    <p><strong>Välj tema:</strong></p>
+    <label><input type="radio" name="theme" value="light"> Ljust</label>
+    <label><input type="radio" name="theme" value="dark"> Mörkt</label>
+    <label><input type="radio" name="theme" value="auto" checked> Auto</label>
+  </div>
+
   <h2>Temperatur och Luftfuktighet</h2>
   <p id="live">Live: laddar...</p>
   <p id="cpuTemp">CPU: laddar...</p>
@@ -29,12 +85,21 @@
 
   <canvas id="chart"></canvas>
 
+  <footer style="margin-top: 40px; font-size: 14px;">
+    <a href="https://github.com/vica50/dht22-web-server/tree/main" target="_blank" style="text-decoration: underline; color: blue; display: flex; align-items: center;">
+      <img src="https://raw.githubusercontent.com/vica50/dht22-web-server/refs/heads/main/assets/github.png" alt="GitHub" width="16" height="16" style="margin-right: 6px;">
+      Source code
+    </a>
+  </footer>
+
   <script>
     const liveElem = document.getElementById("live");
     const ctx = document.getElementById('chart').getContext('2d');
     const rangeSelect = document.getElementById('range');
     const customInput = document.getElementById('customVal');
     const updateBtn = document.getElementById('update');
+    const settingsBtn = document.getElementById('settings-btn');
+    const settingsDiv = document.getElementById('settings');
 
     const chart = new Chart(ctx, {
       type: 'line',
@@ -45,7 +110,12 @@
           { label: 'Luftfuktighet (%)', data: [], borderColor: 'blue', fill: false }
         ]
       },
-      options: { scales: { x: { display: true }, y: { beginAtZero: false } } }
+      options: {
+        scales: {
+          x: { display: true },
+          y: { beginAtZero: false }
+        }
+      }
     });
 
     function updateLive() {
@@ -63,63 +133,87 @@
         });
     }
 
-  function fetchCpuTemp() {
-    fetch('/dht22/api/cpu_temp')
-      .then(res => res.json())
-      .then(data => {
-        const cpuElem = document.getElementById('cpuTemp');
-        if (data.cpu_temp !== undefined) {
-          cpuElem.textContent = 'CPU: ' + data.cpu_temp + ' °C';
-        } else {
-          cpuElem.textContent = 'CPU: Fel: ' + (data.error || 'okänt fel');
-        }
-      })
-      .catch(err => {
-        const cpuElem = document.getElementById('cpuTemp');
-        cpuElem.textContent = 'CPU: Fel vid hämtning';
-        console.error(err);
-      });
-  }
-
-  fetchCpuTemp();
-
-  setInterval(fetchCpuTemp, 2000);
-
-    function updateChart() {
-      let range = rangeSelect.value;
-      let url = `/dht22/api/data?range=${range}`;
-      if (range === 'ch') url += `&h=${customInput.value}`;
-      if (range === 'cd') url += `&d=${customInput.value}`;
-
-      fetch(url)
+    function fetchCpuTemp() {
+      fetch('/dht22/api/cpu_temp')
         .then(res => res.json())
         .then(data => {
-          chart.data.labels = data.map(e => e.time);
-          chart.data.datasets[0].data = data.map(e => e.temp);
-          chart.data.datasets[1].data = data.map(e => e.hum);
-          chart.update();
+          const cpuElem = document.getElementById('cpuTemp');
+          if (data.cpu_temp !== undefined) {
+            cpuElem.textContent = 'CPU: ' + data.cpu_temp + ' °C';
+          } else {
+            cpuElem.textContent = 'CPU: Fel: ' + (data.error || 'okänt fel');
+          }
+        })
+        .catch(err => {
+          const cpuElem = document.getElementById('cpuTemp');
+          cpuElem.textContent = 'CPU: Fel vid hämtning';
+          console.error(err);
         });
     }
 
+    function updateChart() {
+        let range = rangeSelect.value;
+        let customVal = parseInt(customInput.value);
+
+        // Rickroll if the input is 24
+        if ((range === 'ch' || range === 'cd') && customVal === 24) {
+            window.location.href = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+            return;
+        }
+
+        let url = `/dht22/api/data?range=${range}`;
+        if (range === 'ch') url += `&h=${customInput.value}`;
+        if (range === 'cd') url += `&d=${customInput.value}`;
+
+        fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                chart.data.labels = data.map(e => e.time);
+                chart.data.datasets[0].data = data.map(e => e.temp);
+                chart.data.datasets[1].data = data.map(e => e.hum);
+                chart.update();
+            });
+    }
+
+
     rangeSelect.addEventListener('change', () => {
-      if (rangeSelect.value.startsWith('c')) {
-        customInput.style.display = 'inline';
-      } else {
-        customInput.style.display = 'none';
-      }
+      customInput.style.display = rangeSelect.value.startsWith('c') ? 'inline' : 'none';
     });
 
     updateBtn.addEventListener('click', updateChart);
 
+    function applyTheme(mode) {
+      document.body.classList.remove('dark');
+      if (mode === 'dark') {
+        document.body.classList.add('dark');
+      } else if (mode === 'auto') {
+        if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+          document.body.classList.add('dark');
+        }
+      }
+    }
+
+    // Settings menu toggle
+    settingsBtn.addEventListener('click', () => {
+      settingsDiv.style.display = settingsDiv.style.display === 'none' ? 'block' : 'none';
+    });
+
+    // Listen for theme changes
+    document.querySelectorAll('input[name="theme"]').forEach(input => {
+      input.addEventListener('change', () => {
+        applyTheme(input.value);
+      });
+    });
+
     updateChart();
     updateLive();
+    fetchCpuTemp();
+
     setInterval(updateLive, 2000);
+    setInterval(fetchCpuTemp, 2000);
+
+    // Set default theme on load
+    applyTheme(document.querySelector('input[name="theme"]:checked').value);
   </script>
-<footer style="margin-top: 40px; font-size: 14px;">
-  <a href="https://github.com/vica50/dht22-web-server/tree/main" target="_blank" style="text-decoration: underline; color: blue; display: flex; align-items: center;">
-    <img src="https://raw.githubusercontent.com/vica50/dht22-web-server/refs/heads/main/assets/github.png" alt="GitHub" width="16" height="16" style="margin-right: 6px;">
-    Source code
-  </a>
-</footer>
 </body>
 </html>

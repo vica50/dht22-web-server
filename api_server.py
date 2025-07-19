@@ -6,6 +6,7 @@ import board
 import threading
 import time
 import json
+import psutil
 from datetime import datetime, timedelta
 
 app = Flask(__name__, static_folder='static', static_url_path='/dht22/static')
@@ -27,6 +28,10 @@ last_data = {
     "time":None
 }
 
+# Test
+@app.route("/dht22/api/test")
+def test():
+    return "Test route works"
 
 # Serve the index.html
 @app.route("/dht22/")
@@ -59,7 +64,6 @@ def get_live():
     # Return cached (or newly updated) data immediately
     return jsonify(last_data)
 
-
 # API: live CPU temp
 @app.route("/dht22/api/cpu_temp")
 def get_cpu_temp():
@@ -70,6 +74,20 @@ def get_cpu_temp():
         return jsonify({"cpu_temp": round(temp_c, 1)})
     except Exception as e:
         return jsonify({"error": str(e)})
+
+# API: live system stats
+@app.route("/dht22/api/system_stats")
+def get_system_stats():
+    try:
+        cpu_percent = psutil.cpu_percent(interval=0.5)
+        ram_percent = psutil.virtual_memory().percent
+
+        return jsonify({
+            "cpu_usage_percent": cpu_percent,
+            "ram_usage_percent": ram_percent
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # API: fetch logged data
 @app.route("/dht22/api/data")

@@ -71,6 +71,7 @@
   <h2>Temperatur och Luftfuktighet</h2>
   <p id="live">Live: laddar...</p>
   <p id="cpuTemp">CPU: laddar...</p>
+  <p id="cpuRamStats">CPU/RAM: laddar...</p>
 
   <label for="range">Välj tidsintervall:</label>
   <select id="range">
@@ -134,6 +135,24 @@
         .catch(() => {
           liveElem.textContent = "Live: kunde inte hämta";
         });
+    }
+
+    function fetchSystemStats() {
+        fetch('/dht22/api/system_stats')
+            .then(res => res.json())
+            .then(data => {
+                const elem = document.getElementById('cpuRamStats');
+                if (data.cpu_usage_percent !== undefined && data.ram_usage_percent !== undefined) {
+                    elem.textContent = `CPU: ${data.cpu_usage_percent.toFixed(1)}% RAM: ${data.ram_usage_percent.toFixed(1)}%`;
+                } else {
+                    elem.textContent = 'CPU/RAM: Fel vid hämtning';
+                }
+            })
+            .catch(err => {
+                const elem = document.getElementById('cpuRamStats');
+                elem.textContent = 'CPU/RAM: Kunde inte hämta';
+                console.error(err);
+            });
     }
 
     function fetchCpuTemp() {
@@ -213,9 +232,11 @@
     function startLiveUpdate() {
       updateLive();
       fetchCpuTemp();
+      fetchSystemStats();
       liveInterval = setInterval(() => {
         updateLive();
         fetchCpuTemp();
+        fetchSystemStats();
       }, 2000);
     }
 
@@ -248,3 +269,4 @@
   </script>
 </body>
 </html>
+
